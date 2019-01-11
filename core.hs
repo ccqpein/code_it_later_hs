@@ -1,3 +1,5 @@
+module Main where
+
 import           Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.HashMap.Strict        as Map
@@ -5,6 +7,7 @@ import qualified Data.Text                  as T
 import qualified Data.Vector
 import           Text.Regex.TDFA
 
+import           Distribution.Simple.Utils  (getDirectoryContentsRecursive)
 import           GHC.IO.Handle
 import           GHC.IO.IOMode
 import           System.IO
@@ -98,14 +101,40 @@ inner_parser inh func ln re = do
                 (Line_Crumb{ linenum = ln,cmb = (func inpStr)} : re)
 
 
-pickout_from_file :: FilePath -> [Keyword_regex] -> [Comment_regex] -> IO [Line_Crumb]
-pickout_from_file path kr cr = do
+pickout_from_file :: [Keyword_regex] -> [Comment_regex]-> FilePath -> IO [Line_Crumb]
+pickout_from_file kr cr  path = do
   inh <- (openFile path ReadMode)
   inner_parser inh (pickout_from_line kr cr) 0 []
 
 
--- need get all file in path
+filter_filetype :: [String] -> FilePath -> Bool
+filter_filetype ss f =
+  let fp = BL.pack f in
+    iter_filter_ft ss fp
+  where
+    iter_filter_ft [] _ = False
+    iter_filter_ft (x:xs) fpp
+      | (last $ BL.split '.' fpp) == (BL.pack x)  =  True
+      | otherwise = iter_filter_ft xs fpp
 
+
+iter_all_files :: [FilePath] -> (FilePath -> IO [Line_Crumb]) -> [IO (FilePath, [Line_Crumb])]
+iter_all_files files func = map (\f -> do
+                                    cmbs <- func f
+                                    return $ (f, cmbs)
+                                ) files
+
+
+-- for test, local go file
 main :: IO ()
 main = do
-  putStrLn "hello"
+  files <- getDirectoryContentsRecursive "."
+  json <- read_comment_mark_map_file "./comments.json"
+  let comment_keys = map make_comment_regex (get_key_out_of_map ".go" json)
+  let func = pickout_from_file [] comment_keys
+  mconcat $ map (\e -> do
+                    (fp, crumbs) <- e
+                    print fp
+                    print crumbs)
+    (iter_all_files files func)
+

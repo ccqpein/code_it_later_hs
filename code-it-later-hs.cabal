@@ -29,5 +29,7 @@ executable code-it-later-hs
                      , unordered-containers
                      , text
                      , vector
+                     , directory
+                     , Cabal
   -- hs-source-dirs:
   default-language:    Haskell2010
