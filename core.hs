@@ -1,5 +1,7 @@
 module Main where
 
+import           Args
+
 import           Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.HashMap.Strict        as Map
@@ -75,9 +77,9 @@ read_comment_mark_map :: String -> IO (Maybe Object)
 read_comment_mark_map s = do return $ decode $ BL.pack s
 
 
-get_key_out_of_map :: String -> Maybe Object -> [String]
-get_key_out_of_map _ Nothing = []
-get_key_out_of_map k (Just obj) =
+get_comment_out_of_map :: String -> Maybe Object -> [String]
+get_comment_out_of_map _ Nothing = []
+get_comment_out_of_map k (Just obj) =
   case Map.lookup (T.pack k) obj of
     Just v ->
       case v of
@@ -88,7 +90,12 @@ get_key_out_of_map k (Just obj) =
     Nothing -> []
 
 
-inner_parser :: Handle -> (String -> Crumb) -> Int ->[Line_Crumb] -> IO [Line_Crumb]
+get_keys_out_of_map :: Maybe Object -> [String]
+get_keys_out_of_map Nothing    = []
+get_keys_out_of_map (Just obj) = map T.unpack (Map.keys obj)
+
+
+inner_parser :: Handle -> (String -> Crumb) -> Int -> [Line_Crumb] -> IO [Line_Crumb]
 inner_parser inh func ln re = do
   ineof <- hIsEOF inh
   if ineof
@@ -101,13 +108,19 @@ inner_parser inh func ln re = do
                 (Line_Crumb{ linenum = ln,cmb = (func inpStr)} : re)
 
 
-pickout_from_file :: [Keyword_regex] -> [Comment_regex]-> FilePath -> IO [Line_Crumb]
+pickout_from_file :: [Keyword_regex] -> [Comment_regex] -> FilePath -> IO [Line_Crumb]
 pickout_from_file kr cr  path = do
   inh <- (openFile path ReadMode)
   inner_parser inh (pickout_from_line kr cr) 0 []
 
 
+if_have_filetype :: [String] -> [FilePath] -> [FilePath]
+if_have_filetype types = filter (filter_filetype types)
+
+
 filter_filetype :: [String] -> FilePath -> Bool
+filter_filetype _ f
+  | (length (BL.split '.' (BL.pack f))) == 1 = False
 filter_filetype ss f =
   let fp = BL.pack f in
     iter_filter_ft ss fp
@@ -128,9 +141,13 @@ iter_all_files files func = map (\f -> do
 -- for test, local go file
 main :: IO ()
 main = do
-  files <- getDirectoryContentsRecursive "."
   json <- read_comment_mark_map_file "./comments.json"
-  let comment_keys = map make_comment_regex (get_key_out_of_map ".go" json)
+
+  let filetypes = get_keys_out_of_map json
+  -- if use several filetypes, this design may cause some bugs. need to fix it
+  files <- fmap (if_have_filetype filetypes) (getDirectoryContentsRecursive ".")
+
+  let comment_keys = map make_comment_regex (get_comment_out_of_map "go" json)
   let func = pickout_from_file [] comment_keys
   mconcat $ map (\e -> do
                     (fp, crumbs) <- e

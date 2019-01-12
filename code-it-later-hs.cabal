@@ -17,9 +17,9 @@ maintainer:          ccq777@gmail.com
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
-executable code-it-later-hs
+executable codeitlater
   main-is:             Core.hs
-  -- other-modules:
+  other-modules:       Args
   -- other-extensions:
   build-depends:       base
                      , regex-tdfa
