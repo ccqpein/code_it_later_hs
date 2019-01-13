@@ -1,13 +1,12 @@
 module Args where
 
 import           Data.List
-import           System.Environment
 
 data Args = Args {
   filetypes  :: [String],
     dir      :: String,
     keywords :: [String]
-  }deriving (Show)
+  } deriving (Show,Eq)
 
 parse_args :: [String] -> Args -> Args
 parse_args (x:y:xs) a
