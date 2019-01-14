@@ -22,7 +22,7 @@ executable codeitlater
   other-modules:       Args
   -- other-extensions:
   build-depends:       base
-                     , regex-tdfa
+                     , regex-compat-tdfa
                      , aeson
                      , bytestring
                      , containers
@@ -33,4 +33,8 @@ executable codeitlater
                      , Cabal
                      , filepath
   -- hs-source-dirs:
+
+  -- line below shoudl use directly to ghc, like: ghc -prof -fprof-auto -rtsopts ./core.hs
+  -- and need cabal new-build --enable-profiling
+  -- ghc-options: "-rtsopts" "-with-rtsopts=-T -I1"  "-fprof-auto"
   default-language:    Haskell2010

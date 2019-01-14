@@ -7,7 +7,10 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.HashMap.Strict        as Map
 import qualified Data.Text                  as T
 import qualified Data.Vector
-import           Text.Regex.TDFA
+
+
+import           Text.Regex                 as TR
+
 
 import           Distribution.Simple.Utils  (getDirectoryContentsRecursive)
 import           GHC.IO.Handle
@@ -44,14 +47,17 @@ data Line_Crumb = Line_Crumb {
   }
   deriving (Show,Eq)
 
+
 instance Format_print Line_Crumb where
   format_print Line_Crumb{linenum = l, cmb = cmb} = "  |-- Line " ++ show l ++ ": " ++ format_print cmb
+
 
 instance (Format_print c) => Format_print [c] where
   format_print (x:xs) = format_print xs ++ "\n" ++ format_print x
   format_print []     = ""
 
--- make regexs
+
+-- make reges
 make_comment_regex :: String -> Comment_regex
 make_comment_regex sym = ".*" ++ sym ++ "+:= *"
 
@@ -60,31 +66,31 @@ make_keyword_regex keyword = keyword ++ ": *"
 
 
 -- pick comment out line by line
-pick_comment_out :: [Comment_regex] -> String -> Crumb
+pick_comment_out :: [TR.Regex] -> String -> Crumb
 pick_comment_out [] _     =    None
 pick_comment_out (sym:syms) line =
-  let (_, _, temp, _) = line =~ sym ::(String,String,String,[String]) in
-    if temp == ""
+  let temp = TR.splitRegex sym line in
+    if null temp || length temp == 1
     then pick_comment_out syms line
-    else Content temp
+    else Content (last temp)
 
 
 -- filter keywords out
-keyword_filter :: [Keyword_regex] -> Crumb -> Crumb
+keyword_filter :: [(Keyword_regex,TR.Regex)] -> Crumb -> Crumb
 keyword_filter [] a = a
 keyword_filter (x:xs) crumb =
   case crumb of
     Content co              ->
-      let (_,_,temp,_) = co =~ x :: (String,String,String,[String]) in
-        if temp == ""
+      let temp = TR.splitRegex (snd x) co in
+        if null temp || length temp == 1
         then keyword_filter xs crumb
-        else Content_with_keyword ((init x), temp)
+        else Content_with_keyword ((init $ fst x), (last temp))
     _ -> crumb
 
 
 -- pick crumbs out of file
 -- if [Keyword_regex] is empty it does nothing
-pickout_from_line :: [Keyword_regex] -> [Comment_regex] -> String -> Crumb
+pickout_from_line :: [(Keyword_regex,TR.Regex)] -> [TR.Regex] -> String -> Crumb
 pickout_from_line ks crs s =
   let temp = keyword_filter ks $ pick_comment_out crs s in
   case temp of
@@ -138,9 +144,12 @@ inner_parser inh func ln re = do
 
 
 pickout_from_file :: [Keyword_regex] -> [Comment_regex] -> FilePath -> IO [Line_Crumb]
-pickout_from_file kr cr  path = do
+pickout_from_file kr cr path = do
   inh <- (openFile path ReadMode)
-  inner_parser inh (pickout_from_line kr cr) 0 []
+  inner_parser inh
+    (pickout_from_line
+      (map (\x -> (x, TR.mkRegex x)) kr)
+      (map TR.mkRegex cr)) 0 []
 
 
 pickout_from_file_with_filetype :: Map.HashMap FileType ([Keyword_regex],[Comment_regex]) -> FilePath -> IO [Line_Crumb]
@@ -194,12 +203,12 @@ format_print_out :: [IO (FilePath, [Line_Crumb])] -> IO ()
 format_print_out [] = return ()
 format_print_out (x:xs) = do
   (f, lc) <- x
-  if null lc
-    then format_print_out xs
-    else do
-    printf "|-- %s" f
-    printf "%s\n\n" (format_print lc)
-    format_print_out xs
+  case lc of
+    [] -> format_print_out xs
+    (_:_) -> do
+      printf "|-- %s" f
+      printf "%s\n\n" (format_print lc)
+      format_print_out xs
 
 
 default_table :: String
@@ -242,7 +251,7 @@ main = do
   -- files <- fmap (if_have_filetype filetypes) (getDirectoryContentsRecursive ".")
   files <- fmap (map (((dir args_data) ++ "/") ++)) $ getDirectoryContentsRecursive (dir args_data)
   -- files <- getDirectoryContentsRecursive (dir args_data)
-  -- print files
+  -- print $ length files
 
   -- let comment_keys = map make_comment_regex (get_comment_out_of_map "go" json)
   -- let comment_keys_py = map make_comment_regex (get_comment_out_of_map "py" json)
@@ -253,4 +262,3 @@ main = do
   let func = pickout_from_file_with_filetype table
   -- mconcat $
   format_print_out (iter_all_files files func)
-
