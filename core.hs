@@ -13,17 +13,30 @@ import           Distribution.Simple.Utils  (getDirectoryContentsRecursive)
 import           GHC.IO.Handle
 import           GHC.IO.IOMode
 import           System.Environment
+import           System.FilePath.Posix      (takeExtension)
 import           System.IO
+import           Text.Printf                (printf)
 
 
 type FileType = String
 type Comment_regex = String
 type Keyword_regex = String
 
+
+class Format_print a where
+  format_print :: a -> String
+
+
 data Crumb =  None
   | Content String
   | Content_with_keyword (String, String)
   deriving (Show,Eq)
+
+
+instance Format_print Crumb where
+  format_print (Content s)                  = s
+  format_print (Content_with_keyword (k,s)) = k ++ s
+
 
 data Line_Crumb = Line_Crumb {
   linenum :: Int,
@@ -31,6 +44,12 @@ data Line_Crumb = Line_Crumb {
   }
   deriving (Show,Eq)
 
+instance Format_print Line_Crumb where
+  format_print Line_Crumb{linenum = l, cmb = cmb} = "  |-- Line " ++ show l ++ ": " ++ format_print cmb
+
+instance (Format_print c) => Format_print [c] where
+  format_print (x:xs) = format_print xs ++ "\n" ++ format_print x
+  format_print []     = ""
 
 -- make regexs
 make_comment_regex :: String -> Comment_regex
@@ -118,26 +137,16 @@ inner_parser inh func ln re = do
                                       (Line_Crumb{ linenum = ln,cmb = (func inpStr)} : re)
 
 
-
-
 pickout_from_file :: [Keyword_regex] -> [Comment_regex] -> FilePath -> IO [Line_Crumb]
 pickout_from_file kr cr  path = do
   inh <- (openFile path ReadMode)
   inner_parser inh (pickout_from_line kr cr) 0 []
 
 
-
-pickout_filetype :: FilePath -> FileType
-pickout_filetype f
-  | f == "" = ""
-  | otherwise = let temp = (BL.split '.' (BL.pack f)) in
-  if (length temp) == 1 then "" else (BL.unpack $ last temp)
-
-
 pickout_from_file_with_filetype :: Map.HashMap FileType ([Keyword_regex],[Comment_regex]) -> FilePath -> IO [Line_Crumb]
 pickout_from_file_with_filetype m f
   | null m = return []
-  | otherwise = let thistype = pickout_filetype f in
+  | otherwise = let thistype = takeExtension f in
                   if thistype == ""
                   then return []
                   else
@@ -147,20 +156,16 @@ pickout_from_file_with_filetype m f
                         Nothing           -> return []
 
 
--- if_have_filetype :: [FileType] -> [FilePath] -> [FilePath]
--- if_have_filetype types = filter (check_filetype types)
-
-
 check_filetype :: [FileType] -> FilePath -> Bool
 check_filetype _ f
-  | (length (BL.split '.' (BL.pack f))) == 1 = False
+  | takeExtension f == "" = False
 check_filetype ss f =
-  let fp = BL.pack f in
+  let fp = takeExtension f in
     iter_filter_ft ss fp
   where
     iter_filter_ft [] _ = False
     iter_filter_ft (x:xs) fpp
-      | (last $ BL.split '.' fpp) == (BL.pack x)  =  True
+      | fpp == x  =  True
       | otherwise = iter_filter_ft xs fpp
 
 
@@ -185,25 +190,26 @@ argvs_handle a jn
       (if null (filetypes a) then (get_keys_out_of_map jn) else (filetypes a))
 
 
-format_print :: [IO (FilePath, [Line_Crumb])] -> IO ()
-format_print [] = return ()
-format_print (x:xs) = do
+format_print_out :: [IO (FilePath, [Line_Crumb])] -> IO ()
+format_print_out [] = return ()
+format_print_out (x:xs) = do
   (f, lc) <- x
   if null lc
-    then format_print xs
+    then format_print_out xs
     else do
-    print (f,lc)
-    format_print xs
+    printf "|-- %s" f
+    printf "%s\n\n" (format_print lc)
+    format_print_out xs
 
 
 default_table :: String
-default_table = "{\"clj\" : \";\", \
-\\"go\" : [\"//\",\"/\\\\*\"],\
-\\"py\" : \"#\",\
-\\"lisp\":\";\",\
-\\"hs\":\"-- \",\
-\\"rs\":[\"//\",\"/\\\\*\"],\
-\\"el\":\";\"}"
+default_table = "{\".clj\" : \";\", \
+\\".go\" : [\"//\",\"/\\\\*\"],\
+\\".py\" : \"#\",\
+\\".lisp\":\";\",\
+\\".hs\":\"-- \",\
+\\".rs\":[\"//\",\"/\\\\*\"],\
+\\".el\":\";\"}"
 
 {-
 
@@ -211,10 +217,11 @@ What I need next:
 - documents && readme
 - clean some function
 - more features
-  + format print <-****************** important
-  + args can be several
+  + format print <-****************** important (done)
+  + args can be several (done)
   + can input more json map
 - more test
+- use System.FilePath.Posix to handle filetype and path function (done)
 
 -}
 
@@ -222,6 +229,7 @@ What I need next:
 main :: IO ()
 main = do
   args <- getArgs
+  -- print args
   let args_data = parse_args args init_args
 
   -- print args
@@ -232,7 +240,9 @@ main = do
   -- let filetypes = get_keys_out_of_map json_data
   -- if use several filetypes, this design may cause some bugs. need to fix it
   -- files <- fmap (if_have_filetype filetypes) (getDirectoryContentsRecursive ".")
-  files <- getDirectoryContentsRecursive "."
+  files <- fmap (map (((dir args_data) ++ "/") ++)) $ getDirectoryContentsRecursive (dir args_data)
+  -- files <- getDirectoryContentsRecursive (dir args_data)
+  -- print files
 
   -- let comment_keys = map make_comment_regex (get_comment_out_of_map "go" json)
   -- let comment_keys_py = map make_comment_regex (get_comment_out_of_map "py" json)
@@ -242,5 +252,5 @@ main = do
   -- print table
   let func = pickout_from_file_with_filetype table
   -- mconcat $
-  format_print (iter_all_files files func)
+  format_print_out (iter_all_files files func)
 

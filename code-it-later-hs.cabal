@@ -31,5 +31,6 @@ executable codeitlater
                      , vector
                      , directory
                      , Cabal
+                     , filepath
   -- hs-source-dirs:
   default-language:    Haskell2010
