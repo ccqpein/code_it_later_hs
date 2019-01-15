@@ -8,18 +8,17 @@ import qualified Data.HashMap.Strict        as Map
 import qualified Data.Text                  as T
 import qualified Data.Vector
 
-
 import           Text.Regex                 as TR
-
 
 import           Distribution.Simple.Utils  (getDirectoryContentsRecursive)
 import           GHC.IO.Handle
 import           GHC.IO.IOMode
+import           System.Directory           (listDirectory)
 import           System.Environment
 import           System.FilePath.Posix      (takeExtension)
 import           System.IO
+import           System.Posix.Files         (getFileStatus, isDirectory)
 import           Text.Printf                (printf)
-
 
 type FileType = String
 type Comment_regex = String
@@ -130,6 +129,23 @@ get_keys_out_of_map Nothing    = []
 get_keys_out_of_map (Just obj) = map T.unpack (Map.keys obj)
 
 
+-- this function is not as effection as getDirectoryContentsRecursive
+get_all_files :: FilePath -> IO [FilePath]
+get_all_files f = do
+  fs <- listDirectory f
+  get_all_files_recur [] (map ((f ++ "/") ++) fs)
+  where
+    get_all_files_recur re (x:xs) = do
+      status <- getFileStatus x
+      if isDirectory status
+        then do
+        fs <- listDirectory x
+        get_all_files_recur re ((map ((x ++ "/") ++) fs) ++ xs)
+        else do
+        get_all_files_recur (re ++ [x]) xs
+    get_all_files_recur re [] = return re
+
+
 inner_parser :: Handle -> (String -> Crumb) -> Int -> [Line_Crumb] -> IO [Line_Crumb]
 inner_parser inh func ln re = do
   ineof <- hIsEOF inh
@@ -149,7 +165,7 @@ pickout_from_file kr cr path = do
   inner_parser inh
     (pickout_from_line
       (map (\x -> (x, TR.mkRegex x)) kr)
-      (map TR.mkRegex cr)) 0 []
+      (map TR.mkRegex cr)) 1 []
 
 
 pickout_from_file_with_filetype :: Map.HashMap FileType ([Keyword_regex],[Comment_regex]) -> FilePath -> IO [Line_Crumb]
@@ -241,24 +257,11 @@ main = do
   -- print args
   let args_data = parse_args args init_args
 
-  -- print args
-  -- json <- read_comment_mark_map_file "./comments.json"
   json_data <- read_comment_mark_map default_table
 
-
-  -- let filetypes = get_keys_out_of_map json_data
-  -- if use several filetypes, this design may cause some bugs. need to fix it
-  -- files <- fmap (if_have_filetype filetypes) (getDirectoryContentsRecursive ".")
+  -- files <- get_all_files (dir args_data)
   files <- fmap (map (((dir args_data) ++ "/") ++)) $ getDirectoryContentsRecursive (dir args_data)
-  -- files <- getDirectoryContentsRecursive (dir args_data)
-  -- print $ length files
 
-  -- let comment_keys = map make_comment_regex (get_comment_out_of_map "go" json)
-  -- let comment_keys_py = map make_comment_regex (get_comment_out_of_map "py" json)
-  -- let table = Map.fromList [("go",([],comment_keys)), ("py", ([],comment_keys_py))]
-  -- print args_data
   let table = argvs_handle args_data json_data
-  -- print table
   let func = pickout_from_file_with_filetype table
-  -- mconcat $
   format_print_out (iter_all_files files func)

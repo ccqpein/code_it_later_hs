@@ -32,6 +32,7 @@ executable codeitlater
                      , directory
                      , Cabal
                      , filepath
+                     , unix
   -- hs-source-dirs:
 
   -- line below shoudl use directly to ghc, like: ghc -prof -fprof-auto -rtsopts ./core.hs
