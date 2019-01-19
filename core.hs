@@ -1,5 +1,6 @@
 module Main where
 
+-- import arg.hs
 import           Args
 
 import           Data.Aeson
@@ -19,6 +20,7 @@ import           System.Posix.Files         (getFileStatus, isDirectory)
 import           Text.Printf                (printf)
 import           Text.Regex                 as TR
 
+-- define several types
 type FileType = String
 
 type Comment_regex = String
@@ -28,6 +30,7 @@ type Keyword_regex = String
 class Format_print a where
   format_print :: a -> String
 
+-- define my dear crumb(s), and instance it
 data Crumb
   = None
   | Content String
@@ -104,6 +107,7 @@ read_comment_mark_map :: String -> IO (Maybe Object)
 read_comment_mark_map s = do
   return $ decode $ BL.pack s
 
+-- give filetype of souce code and return its comments mark(s)
 get_comment_out_of_map :: String -> Maybe Object -> [String]
 get_comment_out_of_map _ Nothing = []
 get_comment_out_of_map k (Just obj) =
@@ -122,12 +126,14 @@ get_comment_out_of_map k (Just obj) =
         _ -> []
     Nothing -> []
 
+-- pick all filetypes supported out
 get_keys_out_of_map :: Maybe Object -> [String]
 get_keys_out_of_map Nothing    = []
 get_keys_out_of_map (Just obj) = map T.unpack (Map.keys obj)
 
 -----------------------------
 -- this function is not as effection as getDirectoryContentsRecursive
+-- abandoned
 get_all_files :: FilePath -> IO [FilePath]
 get_all_files f = do
   fs <- listDirectory f
@@ -145,6 +151,10 @@ get_all_files f = do
 
 ---------------------------
 ---------------------------
+
+-- this function used by pickout_from_file
+-- input file handle, single line -> crumb function, line number start(for recursive)
+-- and [line_Crumb] (for recursive)
 inner_parser ::
      Handle -> (String -> Crumb) -> Int -> [Line_Crumb] -> IO [Line_Crumb]
 inner_parser inh func ln re = do
@@ -163,6 +173,7 @@ inner_parser inh func ln re = do
             (1 + ln)
             (Line_Crumb {linenum = ln, cmb = (func inpStr)} : re)
 
+-- pick line_crumb out from file
 pickout_from_file ::
      [Keyword_regex] -> [Comment_regex] -> FilePath -> IO [Line_Crumb]
 pickout_from_file kr cr path = do
@@ -173,6 +184,7 @@ pickout_from_file kr cr path = do
     1
     []
 
+-- pick line_crumb out from file
 pickout_from_file_with_filetype ::
      Map.HashMap FileType ([Keyword_regex], [Comment_regex])
   -> FilePath
@@ -188,6 +200,7 @@ pickout_from_file_with_filetype m f
                      Just (krgs, crgs) -> pickout_from_file krgs crgs f
                      Nothing           -> return []
 
+
 check_filetype :: [FileType] -> FilePath -> Bool
 check_filetype _ f
   | takeExtension f == "" = False
@@ -200,6 +213,7 @@ check_filetype ss f =
       | fpp == x = True
       | otherwise = iter_filter_ft xs fpp
 
+-- merge filepath to [Line_Crumb]
 iter_all_files ::
      [FilePath]
   -> (FilePath -> IO [Line_Crumb])
@@ -249,6 +263,8 @@ format_print_out (x:xs) = do
       printf "%s\n\n" (format_print lc)
       format_print_out xs
 
+-- this is init json string which embed code, so binary file will
+-- support this lanuage automaticly
 default_table :: String
 default_table =
   "{\".clj\" : \";\", \
@@ -270,7 +286,7 @@ What I need next:
 - use System.FilePath.Posix to handle filetype and path function (done)
 
 -}
--- for test, local go file
+
 main :: IO ()
 main = do
   args <- getArgs
