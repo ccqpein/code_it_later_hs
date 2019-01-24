@@ -20,6 +20,8 @@ import           System.Posix.Files         (getFileStatus, isDirectory)
 import           Text.Printf                (printf)
 import           Text.Regex                 as TR
 
+import           GHC.Conc                   (numCapabilities)
+
 -- define several types
 type FileType = String
 
@@ -300,3 +302,4 @@ main = do
   let table = argvs_handle args_data json_data
   let func = pickout_from_file_with_filetype table
   format_print_out (iter_all_files files func)
+  putStrLn $ "number of cores: " ++ show numCapabilities

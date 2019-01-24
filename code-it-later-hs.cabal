@@ -38,4 +38,6 @@ executable codeitlater
   -- line below shoudl use directly to ghc, like: ghc -prof -fprof-auto -rtsopts ./core.hs
   -- and need cabal new-build --enable-profiling
   -- ghc-options: "-rtsopts" "-with-rtsopts=-T -I1"  "-fprof-auto"
+
+  ghc-options: -threaded -rtsopts
   default-language:    Haskell2010
