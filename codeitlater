@@ -1,0 +1,3 @@
+#! /usr/bin/env bash
+
+$(dirname "$0")/codeitlater.core +RTS -N2 -RTS "$@"

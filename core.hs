@@ -20,7 +20,11 @@ import           System.Posix.Files         (getFileStatus, isDirectory)
 import           Text.Printf                (printf)
 import           Text.Regex                 as TR
 
-import           GHC.Conc                   (numCapabilities)
+-- packages for test
+-- import           Control.Concurrent         (forkIO)
+import qualified Control.Concurrent.Thread  as Thread (forkIO)
+-- import           Control.DeepSeq            (deepseq, force, rnf)
+-- import           GHC.Conc                   (numCapabilities)
 
 -- define several types
 type FileType = String
@@ -35,22 +39,23 @@ class Format_print a where
 -- define my dear crumb(s), and instance it
 data Crumb
   = None
-  | Content String
-  | Content_with_keyword (String, String)
+  | Content !String
+  | Content_with_keyword !(String, String)
   deriving (Show, Eq)
 
 instance Format_print Crumb where
+  format_print None                          = ""
   format_print (Content s)                   = s
   format_print (Content_with_keyword (k, s)) = k ++ s
 
 data Line_Crumb = Line_Crumb
-  { linenum :: Int
-  , cmb     :: Crumb
+  { linenum :: !Int
+  , cmb     :: !Crumb
   } deriving (Show, Eq)
 
 instance Format_print Line_Crumb where
-  format_print Line_Crumb {linenum = l, cmb = cmb} =
-    "  |-- Line " ++ show l ++ ": " ++ format_print cmb
+  format_print Line_Crumb {linenum = l, cmb = cmb_} =
+    "  |-- Line " ++ show l ++ ": " ++ format_print cmb_
 
 instance (Format_print c) => Format_print [c] where
   format_print (x:xs) = format_print xs ++ "\n" ++ format_print x
@@ -133,6 +138,7 @@ get_keys_out_of_map :: Maybe Object -> [String]
 get_keys_out_of_map Nothing    = []
 get_keys_out_of_map (Just obj) = map T.unpack (Map.keys obj)
 
+
 -----------------------------
 -- this function is not as effection as getDirectoryContentsRecursive
 -- abandoned
@@ -154,6 +160,7 @@ get_all_files f = do
 ---------------------------
 ---------------------------
 
+
 -- this function used by pickout_from_file
 -- input file handle, single line -> crumb function, line number start(for recursive)
 -- and [line_Crumb] (for recursive)
@@ -173,7 +180,7 @@ inner_parser inh func ln re = do
             inh
             func
             (1 + ln)
-            (Line_Crumb {linenum = ln, cmb = (func inpStr)} : re)
+            (Line_Crumb {linenum = ln, cmb = this_line_crumb} : re)
 
 -- pick line_crumb out from file
 pickout_from_file ::
@@ -226,6 +233,21 @@ iter_all_files files func =
        cmbs <- func f
        return $ (f, cmbs))
     files
+
+---------------------------------------------
+-- this is test function try to don't use map
+-- useless, nothing change about memory cost
+iter_all_files2 ::
+     [FilePath]
+  -> (FilePath -> IO [Line_Crumb])
+  -> [IO (FilePath, [Line_Crumb])]
+iter_all_files2 [] _ = []
+iter_all_files2 (f:xs) func =
+  let temp = do
+        cmbs <- func f
+        return $ (f, cmbs) in
+    temp `seq` temp : (iter_all_files2 xs func)
+------------------------------------------------
 
 argvs_handle ::
      Args
@@ -289,17 +311,49 @@ What I need next:
 
 -}
 
+{--
+try to optimize some functions by making it strict, failed.
+there are where time/memory cost most:
+- 1. pick_comment_out cost most of time, I may need optimize regex again.
+- 2. (:) cost most of memory at begining of program, still have no idea whats going on
+--}
+
 main :: IO ()
 main = do
   args <- getArgs
-  -- print args
+
   let args_data = parse_args args init_args
   json_data <- read_comment_mark_map default_table
-  -- files <- get_all_files (dir args_data)
+
   files <-
     fmap (map (((dir args_data) ++ "/") ++)) $
     getDirectoryContentsRecursive (dir args_data)
+
   let table = argvs_handle args_data json_data
   let func = pickout_from_file_with_filetype table
-  format_print_out (iter_all_files files func)
-  putStrLn $ "number of cores: " ++ show numCapabilities
+
+  let leng = length files
+  let (a,b) = splitAt (leng `div` 2) files
+  let (a1,a2) = splitAt (leng `div` 4) a
+  let (b1,b2) = splitAt (leng `div` 4) b
+
+  -- code below is use native forkIO function to turn on concurrency
+  -- but I do not want to write code for blocking main thread until all...
+  -- .. other threads end. So I use 3rd party package to do this
+  --forkIO (format_print_out (iter_all_files b2 func))
+  --forkIO (format_print_out (iter_all_files a2 func))
+  --forkIO (format_print_out (iter_all_files b1 func))
+  --format_print_out (iter_all_files a1 func)
+
+  (_,wait1) <- Thread.forkIO $ format_print_out (iter_all_files a1 func)
+  (_,wait2) <- Thread.forkIO $ format_print_out (iter_all_files a2 func)
+  (_,wait3) <- Thread.forkIO $ format_print_out (iter_all_files b1 func)
+  (_,wait4) <- Thread.forkIO $ format_print_out (iter_all_files b2 func)
+  _ <-wait1
+  _ <-wait2
+  _ <-wait3
+  _ <-wait4
+  return ()
+
+  --format_print_out (iter_all_files files func)
+  --putStrLn $ "number of cores: " ++ show numCapabilities
