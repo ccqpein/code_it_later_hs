@@ -24,6 +24,13 @@ clojure is fastest, haskell is faster than ocaml.
 
 use `cabal build` after installed all packages in `build-depends`
 
+after build, use additional script to enable concurrency
+
+```shell
+cp ./codeitlater /usr/local/bin/ ;
+ln -sfv $(pwd)/dist/build/codeitlater.core/codeitlater.core /usr/local/bin/codeitlater.core
+```
+
 ## Usage ##
 
 As same as clojure version, so please check [clojure version](https://github.com/ccqpein/code-it-later)
