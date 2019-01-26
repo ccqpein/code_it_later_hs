@@ -12,19 +12,15 @@ import qualified Data.Vector
 import           Distribution.Simple.Utils  (getDirectoryContentsRecursive)
 import           GHC.IO.Handle
 import           GHC.IO.IOMode
-import           System.Directory           (listDirectory)
 import           System.Environment
 import           System.FilePath.Posix      (takeExtension)
 import           System.IO
-import           System.Posix.Files         (getFileStatus, isDirectory)
 import           Text.Printf                (printf)
 import           Text.Regex                 as TR
 
--- packages for test
--- import           Control.Concurrent         (forkIO)
 import qualified Control.Concurrent.Thread  as Thread (forkIO)
--- import           Control.DeepSeq            (deepseq, force, rnf)
--- import           GHC.Conc                   (numCapabilities)
+import           Control.DeepSeq            (force)
+
 
 -- define several types
 type FileType = String
@@ -35,6 +31,7 @@ type Keyword_regex = String
 
 class Format_print a where
   format_print :: a -> String
+
 
 -- define my dear crumb(s), and instance it
 data Crumb
@@ -47,6 +44,7 @@ instance Format_print Crumb where
   format_print None                          = ""
   format_print (Content s)                   = s
   format_print (Content_with_keyword (k, s)) = k ++ s
+
 
 data Line_Crumb = Line_Crumb
   { linenum :: !Int
@@ -61,12 +59,14 @@ instance (Format_print c) => Format_print [c] where
   format_print (x:xs) = format_print xs ++ "\n" ++ format_print x
   format_print []     = ""
 
+
 -- make reges
 make_comment_regex :: String -> Comment_regex
-make_comment_regex sym = ".*" ++ sym ++ "+:= *"
+make_comment_regex sym = sym ++ "+:= *"
 
 make_keyword_regex :: String -> Keyword_regex
 make_keyword_regex keyword = keyword ++ ": *"
+
 
 -- pick comment out line by line
 pick_comment_out :: [TR.Regex] -> String -> Crumb
@@ -103,16 +103,19 @@ pickout_from_line ks crs s =
             then temp
             else None
 
+
 -- from json file
 read_comment_mark_map_file :: FilePath -> IO (Maybe Object)
 read_comment_mark_map_file f = do
   jn <- readFile f
   return $ decode $ BL.pack jn
 
+
 -- from string directly
 read_comment_mark_map :: String -> IO (Maybe Object)
 read_comment_mark_map s = do
   return $ decode $ BL.pack s
+
 
 -- give filetype of souce code and return its comments mark(s)
 get_comment_out_of_map :: String -> Maybe Object -> [String]
@@ -133,32 +136,11 @@ get_comment_out_of_map k (Just obj) =
         _ -> []
     Nothing -> []
 
+
 -- pick all filetypes supported out
 get_keys_out_of_map :: Maybe Object -> [String]
 get_keys_out_of_map Nothing    = []
 get_keys_out_of_map (Just obj) = map T.unpack (Map.keys obj)
-
-
------------------------------
--- this function is not as effection as getDirectoryContentsRecursive
--- abandoned
-get_all_files :: FilePath -> IO [FilePath]
-get_all_files f = do
-  fs <- listDirectory f
-  get_all_files_recur [] (map ((f ++ "/") ++) fs)
-  where
-    get_all_files_recur re (x:xs) = do
-      status <- getFileStatus x
-      if isDirectory status
-        then do
-          fs <- listDirectory x
-          get_all_files_recur re ((map ((x ++ "/") ++) fs) ++ xs)
-        else do
-          get_all_files_recur (re ++ [x]) xs
-    get_all_files_recur re [] = return re
-
----------------------------
----------------------------
 
 
 -- this function used by pickout_from_file
@@ -210,18 +192,6 @@ pickout_from_file_with_filetype m f
                      Nothing           -> return []
 
 
-check_filetype :: [FileType] -> FilePath -> Bool
-check_filetype _ f
-  | takeExtension f == "" = False
-check_filetype ss f =
-  let fp = takeExtension f
-   in iter_filter_ft ss fp
-  where
-    iter_filter_ft [] _ = False
-    iter_filter_ft (x:xs) fpp
-      | fpp == x = True
-      | otherwise = iter_filter_ft xs fpp
-
 -- merge filepath to [Line_Crumb]
 iter_all_files ::
      [FilePath]
@@ -233,21 +203,6 @@ iter_all_files files func =
        cmbs <- func f
        return $ (f, cmbs))
     files
-
----------------------------------------------
--- this is test function try to don't use map
--- useless, nothing change about memory cost
-iter_all_files2 ::
-     [FilePath]
-  -> (FilePath -> IO [Line_Crumb])
-  -> [IO (FilePath, [Line_Crumb])]
-iter_all_files2 [] _ = []
-iter_all_files2 (f:xs) func =
-  let temp = do
-        cmbs <- func f
-        return $ (f, cmbs) in
-    temp `seq` temp : (iter_all_files2 xs func)
-------------------------------------------------
 
 argvs_handle ::
      Args
@@ -287,6 +242,7 @@ format_print_out (x:xs) = do
       printf "%s\n\n" (format_print lc)
       format_print_out xs
 
+
 -- this is init json string which embed code, so binary file will
 -- support this lanuage automaticly
 default_table :: String
@@ -321,39 +277,29 @@ there are where time/memory cost most:
 main :: IO ()
 main = do
   args <- getArgs
-
   let args_data = parse_args args init_args
   json_data <- read_comment_mark_map default_table
-
   files <-
     fmap (map (((dir args_data) ++ "/") ++)) $
     getDirectoryContentsRecursive (dir args_data)
-
   let table = argvs_handle args_data json_data
   let func = pickout_from_file_with_filetype table
 
-  let leng = length files
-  let (a,b) = splitAt (leng `div` 2) files
-  let (a1,a2) = splitAt (leng `div` 4) a
-  let (b1,b2) = splitAt (leng `div` 4) b
-
-  -- code below is use native forkIO function to turn on concurrency
-  -- but I do not want to write code for blocking main thread until all...
-  -- .. other threads end. So I use 3rd party package to do this
-  --forkIO (format_print_out (iter_all_files b2 func))
-  --forkIO (format_print_out (iter_all_files a2 func))
-  --forkIO (format_print_out (iter_all_files b1 func))
-  --format_print_out (iter_all_files a1 func)
+  -- cut file list
+  let leng = length (force files)
+  let (a, b) = splitAt (leng `div` 2) files
+  let (a1, a2) = splitAt (leng `div` 4) a
+  let (b1, b2) = splitAt (leng `div` 4) b
 
   (_,wait1) <- Thread.forkIO $ format_print_out (iter_all_files a1 func)
   (_,wait2) <- Thread.forkIO $ format_print_out (iter_all_files a2 func)
   (_,wait3) <- Thread.forkIO $ format_print_out (iter_all_files b1 func)
   (_,wait4) <- Thread.forkIO $ format_print_out (iter_all_files b2 func)
-  _ <-wait1
-  _ <-wait2
-  _ <-wait3
-  _ <-wait4
-  return ()
+  _ <- wait1
+  _ <- wait2
+  _ <- wait3
+  _ <- wait4
 
+  return ()
   --format_print_out (iter_all_files files func)
   --putStrLn $ "number of cores: " ++ show numCapabilities
