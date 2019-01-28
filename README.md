@@ -17,6 +17,15 @@ haskell faster than ocaml (just a little), and clojure version is slow.
 **big input:**
 clojure is fastest, haskell is faster than ocaml.
 
+===========
+**update from 1/27/2019**
+I make this version become concurrency version. And tested with same input:
+
+clojure version: cost 2.2 second, ~200% cpu cost.
+ocaml version: cost 2.2 second, 100% cpu cost.
+this haskell version: cost 0.6 seconds, 140% cpu cost.
+
+I am satisfied about this result. And change haskell code to concurrency is not that hard.
 
 ## Install ##
 
@@ -42,4 +51,6 @@ Features those still developing:
 
 ## Next ##
 
-ocaml looks like not very convenient for using parallel. I will try parallel in this haskell version for practice.
+~~ocaml looks like not very convenient for using parallel. I will try parallel in this haskell version for practice.~~
+
+I do not use parallel, I make it concurrency with mutil-core, and it is good enough. 
