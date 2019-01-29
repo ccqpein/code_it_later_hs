@@ -78,6 +78,7 @@ pick_comment_out (sym:syms) line =
         else Content (last temp)
 
 -- filter keywords out
+-- first argv is (keyword, keyword_regex_pattern)
 keyword_filter :: [(Keyword_regex, TR.Regex)] -> Crumb -> Crumb
 keyword_filter [] a = a
 keyword_filter (x:xs) crumb =
