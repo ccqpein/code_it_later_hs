@@ -17,7 +17,8 @@ haskell faster than ocaml (just a little), and clojure version is slow.
 **big input:**
 clojure is fastest, haskell is faster than ocaml.
 
-===========
+===================================
+
 **update from 1/27/2019**
 
 I make this version become concurrency version. And tested with same input:
