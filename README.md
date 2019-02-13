@@ -49,7 +49,7 @@ As same as clojure version, so please check [clojure version](https://github.com
 Features those still developing:
 
 - [ ] output to org file
-- [ ] expand other languages json file
+- [x] expand other languages json file
 
 ## Next ##
 

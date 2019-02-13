@@ -279,7 +279,12 @@ main :: IO ()
 main = do
   args <- getArgs
   let args_data = parse_args args init_args
-  json_data <- read_comment_mark_map default_table
+
+  -- read comments table
+  json_data <- if (jsonx args_data) == ""
+    then read_comment_mark_map default_table
+    else read_comment_mark_map_file (jsonx args_data)
+
   files <-
     fmap (map (((dir args_data) ++ "/") ++)) $
     getDirectoryContentsRecursive (dir args_data)
