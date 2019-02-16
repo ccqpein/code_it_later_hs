@@ -33,7 +33,15 @@ I am satisfied about this result. And change haskell code to concurrency is not 
 
 `code-it-later-hs.cabal` including all build configuration which `cabal` need.
 
-use `cabal build` after installed all packages in `build-depends`
+use `cabal build` after installed all packages in `build-depends` 
+
+maybe cabal sandbox:
+
+```shell 
+cabal sandbox init
+cabal install --only-dependencies
+cabal build
+```
 
 after build, use additional script to enable concurrency
 

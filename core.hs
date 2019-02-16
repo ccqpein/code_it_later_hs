@@ -165,6 +165,7 @@ inner_parser inh func ln re = do
             (1 + ln)
             (Line_Crumb {linenum = ln, cmb = this_line_crumb} : re)
 
+
 -- pick line_crumb out from file
 pickout_from_file ::
      [Keyword_regex] -> [Comment_regex] -> FilePath -> IO [Line_Crumb]
@@ -175,6 +176,7 @@ pickout_from_file kr cr path = do
     (pickout_from_line (map (\x -> (x, TR.mkRegex x)) kr) (map TR.mkRegex cr))
     1
     []
+
 
 -- pick line_crumb out from file
 pickout_from_file_with_filetype ::
@@ -205,6 +207,7 @@ iter_all_files files func =
        return $ (f, cmbs))
     files
 
+
 argvs_handle ::
      Args
   -> Maybe Object
@@ -231,6 +234,7 @@ argvs_handle a jn
           (if null (filetypes a)
              then (get_keys_out_of_map jn)
              else (filetypes a))
+
 
 format_print_out :: [IO (FilePath, [Line_Crumb])] -> IO ()
 format_print_out [] = return ()
