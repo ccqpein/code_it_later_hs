@@ -18,7 +18,7 @@ import           System.IO
 import           Text.Printf                (printf)
 import           Text.Regex                 as TR
 
-import qualified Control.Concurrent.Thread  as Thread (forkIO)
+import qualified Control.Concurrent.Thread  as Thread (forkIO, result)
 import           Control.DeepSeq            (force)
 
 
@@ -199,13 +199,13 @@ pickout_from_file_with_filetype m f
 iter_all_files ::
      [FilePath]
   -> (FilePath -> IO [Line_Crumb])
-  -> [IO (FilePath, [Line_Crumb])]
+  -> IO [IO (FilePath, [Line_Crumb])]
 iter_all_files files func =
-  map
-    (\f -> do
-       cmbs <- func f
-       return $ (f, cmbs))
-    files
+  return (map
+          (\f -> do
+              cmbs <- func f
+              return $ (f, cmbs))
+          files)
 
 
 argvs_handle ::
@@ -301,14 +301,15 @@ main = do
   let (a1, a2) = splitAt (leng `div` 4) a
   let (b1, b2) = splitAt (leng `div` 4) b
 
-  (_,wait1) <- Thread.forkIO $ format_print_out (iter_all_files a1 func)
-  (_,wait2) <- Thread.forkIO $ format_print_out (iter_all_files a2 func)
-  (_,wait3) <- Thread.forkIO $ format_print_out (iter_all_files b1 func)
-  (_,wait4) <- Thread.forkIO $ format_print_out (iter_all_files b2 func)
-  _ <- wait1
-  _ <- wait2
-  _ <- wait3
-  _ <- wait4
+  (_, wait1) <- Thread.forkIO $ iter_all_files a1 func
+  (_, wait2) <- Thread.forkIO $ iter_all_files a2 func
+  (_, wait3) <- Thread.forkIO $ iter_all_files b1 func
+  (_, wait4) <- Thread.forkIO $ iter_all_files b2 func
+
+  wait1 >>= Thread.result >>= format_print_out
+  wait2 >>= Thread.result >>= format_print_out
+  wait3 >>= Thread.result >>= format_print_out
+  wait4 >>= Thread.result >>= format_print_out
 
   return ()
   --format_print_out (iter_all_files files func)
