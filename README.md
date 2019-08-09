@@ -33,21 +33,17 @@ I am satisfied about this result. And change haskell code to concurrency is not 
 
 `code-it-later-hs.cabal` including all build configuration which `cabal` need.
 
-use `cabal build` after installed all packages in `build-depends` 
-
-maybe cabal sandbox:
+use `cabal new-build` after installed all packages in `build-depends` 
 
 ```shell 
-cabal sandbox init
-cabal install --only-dependencies
-cabal build
+cabal new-build
 ```
 
 after build, use additional script to enable concurrency
 
 ```shell
 cp ./codeitlater /usr/local/bin/ ;
-ln -sfv $(pwd)/dist/build/codeitlater.core/codeitlater.core /usr/local/bin/codeitlater.core
+ln -sfv $(pwd)/dist-newstyle/build/x86_64-osx/ghc-8.6.5/code-it-later-hs-0.2.1.0/x/codeitlater.core/build/codeitlater.core/codeitlater.core /usr/local/bin/codeitlater.core
 ```
 
 ## Usage ##

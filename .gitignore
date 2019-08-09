@@ -3,6 +3,7 @@ GPATH
 GRTAGS
 GTAGS
 dist/
+dist-newstyle/
 _test.*
 .ghc.environment.*
 .DS_Store
