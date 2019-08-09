@@ -201,12 +201,11 @@ iter_all_files ::
   -> (FilePath -> IO [Line_Crumb])
   -> IO [IO (FilePath, [Line_Crumb])]
 iter_all_files files func =
-  return (map
-          (\f -> do
-              cmbs <- func f
-              return $ (f, cmbs))
-          files)
-
+  return (foldl
+          (\x f -> x ++
+            [(func f >>= (\y -> return $ (f, y)))])
+           []
+           files)
 
 argvs_handle ::
      Args
