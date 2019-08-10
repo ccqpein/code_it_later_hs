@@ -282,34 +282,37 @@ main :: IO ()
 main = do
   args <- getArgs
   let args_data = parse_args args init_args
-
   -- read comments table
-  json_data <- if (jsonx args_data) == ""
-    then read_comment_mark_map default_table
-    else read_comment_mark_map_file (jsonx args_data)
-
+  json_data <-
+    if (jsonx args_data) == ""
+      then read_comment_mark_map default_table
+      else read_comment_mark_map_file (jsonx args_data)
+  -- read all files paths
   files <-
     fmap (map (((dir args_data) ++ "/") ++)) $
-    getDirectoryContentsRecursive (dir args_data)
+    (case (ignore_dir args_data) of
+       "" -> getDirectoryContentsRecursive (dir args_data)
+       a ->
+         fmap
+           (filter
+             (\fp-> not (BL.isPrefixOf (BL.pack a) (BL.pack fp)))) $
+         getDirectoryContentsRecursive (dir args_data))
+
   let table = argvs_handle args_data json_data
   let func = pickout_from_file_with_filetype table
-
   -- cut file list
   let leng = length (force files)
   let (a, b) = splitAt (leng `div` 2) files
   let (a1, a2) = splitAt (leng `div` 4) a
   let (b1, b2) = splitAt (leng `div` 4) b
-
   (_, wait1) <- Thread.forkIO $ iter_all_files a1 func
   (_, wait2) <- Thread.forkIO $ iter_all_files a2 func
   (_, wait3) <- Thread.forkIO $ iter_all_files b1 func
   (_, wait4) <- Thread.forkIO $ iter_all_files b2 func
-
   wait1 >>= Thread.result >>= format_print_out
   wait2 >>= Thread.result >>= format_print_out
   wait3 >>= Thread.result >>= format_print_out
   wait4 >>= Thread.result >>= format_print_out
-
   return ()
   --format_print_out (iter_all_files files func)
   --putStrLn $ "number of cores: " ++ show numCapabilities
