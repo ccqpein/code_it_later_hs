@@ -55,6 +55,10 @@ Features those still developing:
 - [ ] output to org file
 - [x] expand other languages json file
 
+### Features only in this version ###
+
+`-dx {folder_name}` or `--ignore-dir {folder_name}` will ignore all files in `{folder_name}`
+
 ## Next ##
 
 ~~ocaml looks like not very convenient for using parallel. I will try parallel in this haskell version for practice.~~
