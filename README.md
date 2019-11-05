@@ -29,6 +29,10 @@ I make this version become concurrency version. And tested with same input:
 
 I am satisfied about this result. And change haskell code to concurrency is not that hard.
 
+**update from 11/3/2019**
+
+after ghc 8.10 add `-xn` to active new GC in runtime.
+
 ## Install ##
 
 `code-it-later-hs.cabal` including all build configuration which `cabal` need.
