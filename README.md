@@ -37,18 +37,19 @@ after ghc 8.10 add `-xn` to active new GC in runtime.
 
 `code-it-later-hs.cabal` including all build configuration which `cabal` need.
 
-use `cabal new-build` after installed all packages in `build-depends` 
+use `cabal new-install` to install
 
 ```shell 
-cabal new-build
+cabal new-install -O2 --installdir=/usr/local/bin .
 ```
 
-after build, use additional script to enable concurrency
+then 
 
-```shell
-cp ./codeitlater /usr/local/bin/ ;
-ln -sfv $(pwd)/dist-newstyle/build/x86_64-osx/ghc-8.6.5/code-it-later-hs-0.2.1.0/x/codeitlater.core/build/codeitlater.core/codeitlater.core /usr/local/bin/codeitlater.core
 ```
+cp ./codeitlater /usr/local/bin/
+```
+
+after install, `codeitlater` should in your `/usr/local/bin/codeitlater`
 
 ## Usage ##
 
