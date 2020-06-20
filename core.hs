@@ -259,18 +259,6 @@ default_table =
 \\".rs\":[\"//\",\"/\\\\*\"],\
 \\".el\":\";\"}"
 
-{-
-
-What I need next:
-- documents && readme
-- clean some function
-- more features
-  + can input more json map
-- more test
-- use System.FilePath.Posix to handle filetype and path function (done)
-
--}
-
 {--
 try to optimize some functions by making it strict, failed.
 there are where time/memory cost most:
