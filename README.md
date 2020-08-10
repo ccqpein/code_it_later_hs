@@ -6,6 +6,7 @@ I already have other versions:
 
 + [code_it_later_ml](https://github.com/ccqpein/code_it_later_ml) ocaml version
 + [code-it-later](https://github.com/ccqpein/code-it-later) clojure version
++ [code-it-later-rs](https://github.com/ccqpein/code-it-later-rs) rust version
 
 so why I write this version. Because after I finish first ocaml version, I thought why not haskell. Then I start this repo. 
 
